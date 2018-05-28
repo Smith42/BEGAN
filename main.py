@@ -163,6 +163,7 @@ def began_train(start_epoch=0, add_epochs=None, batch_size=16,
             loss_tracker['generator'].append(G_loss_)
             loss_tracker['discriminator'].append(D_loss_)
             loss_tracker['convergence_measure'].append(M_)
+            print("G:", G_loss_, "D:", D_loss_, "Conv:", M_)
 
         if epoch % save_every == 0:
             path = '{}/{}_{}.tfmod'.format(checkpoint_path,

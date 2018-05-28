@@ -67,7 +67,6 @@ def dataIterator(data, batch_size):
             cur_idxs = np.sort(idxs[batch_idx:batch_idx + batch_size])
             images_batch = data[0][list(cur_idxs)]
             # images_batch = images_batch.astype("float32")
-            print(images_batch.size)
             yield images_batch
 
 
@@ -90,8 +89,7 @@ def plot_gens(images, rowlabels, losses):
     fig, ax = plt.subplots(nrows=len(images), ncols=examples, figsize=(18, 8))
     for i in range(examples):
         for j in range(len(images)):
-            ax[(j, i)].imshow(create_image(images[j][i]), cmap=plt.cm.gray,
-                              interpolation='nearest')
+            ax[(j, i)].plot(np.reshape(images[j][i], [800,3]))
             ax[(j, i)].axis('off')
     title = ''
     for i in rowlabels:
