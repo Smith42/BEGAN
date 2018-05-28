@@ -1,8 +1,10 @@
 import tensorflow as tf
 from generator import began_generator as generator
 from discriminator import began_discriminator as discriminator
-from utils.misc import loadData, dataIterator
+from utils.misc import my_loadData, dataIterator
+from config import data_path
 import tqdm
+import h5py
 import numpy as np
 from utils.misc import plot_gens
 from config import checkpoint_path, checkpoint_prefix
@@ -66,24 +68,24 @@ class BEGAN:
         convergence_measure = mu_real + np.abs(gamma * mu_real - mu_gen)
         return D_loss, G_loss, k_tp, convergence_measure
 
-    def run(x, batch_size, num_filters, hidden_size, image_size):
+    def run(x, batch_size, num_filters, hidden_size):
         Z = tf.random_normal((batch_size, hidden_size), 0, 1)
 
         x_tilde = generator(Z, batch_size=batch_size, num_filters=num_filters,
-                            hidden_size=hidden_size, image_size=image_size)
+                            hidden_size=hidden_size)
         x_tilde_d = discriminator(x_tilde, batch_size=batch_size, num_filters=num_filters,
-                                  hidden_size=hidden_size, image_size=image_size)
+                                  hidden_size=hidden_size)
 
         x_d = discriminator(x, reuse_scope=True, batch_size=batch_size, num_filters=num_filters,
-                            hidden_size=hidden_size, image_size=image_size)
+                            hidden_size=hidden_size)
 
         return x_tilde, x_tilde_d, x_d
 
     scopes = ['generator', 'discriminator']
 
 
-def began_train(num_images=50000, start_epoch=0, add_epochs=None, batch_size=16,
-                hidden_size=64, image_size=64, gpu_id='/gpu:0',
+def began_train(start_epoch=0, add_epochs=None, batch_size=16,
+                hidden_size=64, gpu_id='/gpu:0',
                 demo=False, get=False, start_learn_rate=1e-4, decay_every=100,
                 save_every=1, batch_norm=True, gamma=0.75):
 
@@ -101,10 +103,10 @@ def began_train(num_images=50000, start_epoch=0, add_epochs=None, batch_size=16,
             opt = tf.train.AdamOptimizer(learning_rate, epsilon=1.0)
 
             next_batch = tf.placeholder(tf.float32,
-                                        [batch_size, image_size * image_size * 3])
+                                        [batch_size, 800*3])
 
             x_tilde, x_tilde_d, x_d = BEGAN.run(next_batch, batch_size=batch_size, num_filters=128,
-                                                hidden_size=hidden_size, image_size=image_size)
+                                                hidden_size=hidden_size)
 
             k_t = tf.get_variable('kt', [],
                                   initializer=tf.constant_initializer(0),
@@ -139,9 +141,13 @@ def began_train(num_images=50000, start_epoch=0, add_epochs=None, batch_size=16,
         tf.train.Saver.restore(saver, sess, path)
 
     k_t_ = sess.run(k_t)  # We initialise with k_t = 0 as in the paper.
+
+    hf = h5py.File(data_path, 'r')
+    images = hf['train/ill']
+    print(images)
+    num_images = len(images)
     num_batches_per_epoch = num_images // batch_size
     for epoch in range(start_epoch, num_epochs):
-        images = loadData(size=num_images)
         print('Epoch {} / {}'.format(epoch + 1, num_epochs + 1))
         for i in tqdm.tqdm(range(num_batches_per_epoch)):
             iter_ = dataIterator([images], batch_size)
@@ -222,9 +228,6 @@ if __name__ == '__main__':
     parser.add_argument('--outdir', type=str, default='output',
                         help='Path to save output generations')
 
-    parser.add_argument('--image-size', type=int, default=64,
-                        help='Image size (must be 64 or 128)')
-
     args = parser.parse_args()
     if args.gpuid == -1:
         args.gpuid = '/cpu:0'
@@ -245,14 +248,13 @@ if __name__ == '__main__':
     im = began_train(start_epoch=args.start_epoch, add_epochs=args.add_epochs,
                 batch_size=args.batch_size, hidden_size=args.hidden_size,
                 gpu_id=args.gpuid, demo=demo, get=get,
-                image_size=args.image_size,
                 save_every=args.save_every, decay_every=args.decay_every,
-                batch_norm=args.batch_norm, num_images=args.num_images,
+                batch_norm=args.batch_norm,
                 start_learn_rate=args.start_learn_rate)
 
     if not args.train:
         import matplotlib.pyplot as plt
         for n in range(8):
-            im_to_save = im[n].reshape([args.image_size, args.image_size, 3])
-            plt.imsave(args.outdir+'/out_{}.jpg'.format(n),
-                       im_to_save)
+            im_to_save = im[n].reshape([800, 3])
+            plt.plot(im_to_save)
+            plt.save_fig(args.outdir+'/out_{}.jpg'.format(n))

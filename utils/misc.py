@@ -16,6 +16,13 @@ def loadData(size):
         return faces / 255
 
 
+def my_loadData():
+    import h5py
+    hf = h5py.File(data_path, 'r')
+    ecgs = hf['train/ill']
+    return ecgs
+
+
 def loadJPGs(path='/home/arthur/devel/input/', width=64, height=64):
     filenames = glob(path+"*.jpg")
     filenames = np.sort(filenames)
@@ -57,9 +64,10 @@ def dataIterator(data, batch_size):
         idxs = np.arange(0, length)
         np.random.shuffle(idxs)
         for batch_idx in range(0, length, batch_size):
-            cur_idxs = idxs[batch_idx:batch_idx + batch_size]
-            images_batch = data[0][cur_idxs]
+            cur_idxs = np.sort(idxs[batch_idx:batch_idx + batch_size])
+            images_batch = data[0][list(cur_idxs)]
             # images_batch = images_batch.astype("float32")
+            print(images_batch.size)
             yield images_batch
 
 
